@@ -153,12 +153,70 @@
 
   // ---------- fluxo ----------
   function start() { if (window.VSAudio) VSAudio.play('ui_start', { prio: true, jitter: 0 }); applyEnemySkin(); warmOutlines(); g = new Game(PAL_NAMES[selIdx]); g.W = W; g.H = H; g.wantEvents = true; state = 'play'; window.__game = g; P.length = 0; shakeA = 0; flashA = 0; cv.style.filter = BASE_FILTER; }
-  function startOnline() {
+  function startOnline(paid) {
     if (location.protocol === 'file:') { menuMsg = 'Online needs the server - open the game with online.bat'; menuMsgT = 4; return; }
     const name = (nickEl.value || '').trim(); try { localStorage.setItem('vs_nick', name); } catch (e) { }
     skin = 'pokemon'; if (window.VSAudio) VSAudio.play('ui_start', { prio: true, jitter: 0 }); applyEnemySkin(); warmOutlines();
     const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
-    g = new window.VSNet.RemoteGame(url, { name, ch: PAL_NAMES[selIdx] }, {}); g.W = W; g.H = H; state = 'play'; window.__game = g; P.length = 0; shakeA = 0; flashA = 0; cv.style.filter = BASE_FILTER; nickEl.blur();
+    g = new window.VSNet.RemoteGame(url, { name, ch: PAL_NAMES[selIdx], paid: !!paid, pack: paid ? PAYCFG.packs[0].code : undefined }, { onPayTx: signAndReturn }); g.W = W; g.H = H; state = 'play'; window.__game = g; P.length = 0; shakeA = 0; flashA = 0; cv.style.filter = BASE_FILTER; nickEl.blur();
+  }
+  // ---------- salas pagas: configuração, carteira Solana (Phantom), pagamento ----------
+  let PAYCFG = { mode: 'sim', min: 2, max: 4, packs: [{ code: 'pokemon_25', usd: 25, label: 'Starter Pack' }] }, prizeIntro = false;
+  fetch('/paid/config').then(r => r.json()).then(c => { PAYCFG = c; }).catch(() => { });
+  const WALLET = { provider: null, pubkey: null }; let web3Promise = null, walletMsg = '';
+  const usd = v => '$' + (+v).toFixed(2);
+  function ensureWeb3() {   // biblioteca da Solana carregada só quando precisa
+    if (window.solanaWeb3) return Promise.resolve(window.solanaWeb3);
+    if (!web3Promise) web3Promise = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.min.js'; sc.onload = () => res(window.solanaWeb3); sc.onerror = () => { web3Promise = null; rej(new Error('Could not load the Solana library')); }; document.head.appendChild(sc); });
+    return web3Promise;
+  }
+  async function getWalletProvider() {
+    if (window.__testWalletSecret) { const w3 = await ensureWeb3(), kp = w3.Keypair.fromSecretKey(Uint8Array.from(window.__testWalletSecret)); return { publicKey: kp.publicKey, connect: async () => ({ publicKey: kp.publicKey }), signTransaction: async tx => { tx.partialSign(kp); return tx; } }; }   // gancho de teste
+    const p = (window.phantom && window.phantom.solana) || window.solana; if (!p) throw new Error('No Solana wallet found - install Phantom (phantom.app)'); return p;
+  }
+  async function connectWallet() {
+    try { const p = await getWalletProvider(), r = await p.connect(); WALLET.provider = p; WALLET.pubkey = String((r && r.publicKey) || p.publicKey); walletMsg = ''; }
+    catch (e) { const m = String(e && e.message || e); walletMsg = /reject|denied|cancel|closed/i.test(m) ? 'Wallet connection cancelled' : m.slice(0, 80); }
+  }
+  const b64ToBytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0)), bytesToB64 = u => { let s = ''; for (const x of u) s += String.fromCharCode(x); return btoa(s); };
+  async function signAndReturn(b64) {   // o servidor monta a transação, o jogador assina na carteira, devolvemos
+    try { const w3 = await ensureWeb3(), tx = w3.Transaction.from(b64ToBytes(b64)), signed = await WALLET.provider.signTransaction(tx); g.send({ t: 'paytx', tx: bytesToB64(signed.serialize({ requireAllSignatures: false })) }); g.payMsg = 'Sending the payment...'; }
+    catch (e) { g.payError = /reject|denied|cancel/i.test(String(e && e.message)) ? 'You cancelled the payment' : String(e && e.message || e).slice(0, 100); g.payBusy = false; g.payMsg = ''; }
+  }
+  function drawPrizeIntro(t) {
+    const cfg = PAYCFG, real = cfg.mode === 'solana', pk = cfg.packs[0], w = 700, h = real ? 470 : 420, x = (W - w) / 2, y = (H - h) / 2;
+    ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(0, 0, W, H); panel(x, y, w, h, 'frameB_gold');
+    txt('PLAY FOR PRIZE', W / 2, y + 52, 32, '#ffd24a', 'center'); txt('Prize: ' + pk.label + '  (' + usd(pk.usd) + ')', W / 2, y + 86, 16, '#fff', 'center');
+    let yy = wrap('Joining is free. When at least ' + cfg.min + ' players are in the lobby it locks, and the pack price' + (cfg.fee ? ' (+ ' + cfg.fee + '% service fee)' : '') + ' is split between everyone (more players = cheaper).', x + 40, y + 124, w - 80, 16, '#cfe0ff', 22);
+    yy = wrap('Real players only. When the match ends, the player who KILLED THE MOST enemies wins the card pack' + (real ? ', sent straight to their wallet. You pay in USDC from your wallet (no SOL needed). The card is random: it can be worth more or less than the pack price.' : '.'), x + 40, yy + 8, w - 80, 16, '#cfe0ff', 22);
+    yy = wrap('If you leave a prize match before it ends, you forfeit.', x + 40, yy + 8, w - 80, 16, '#ff9a9a', 22);
+    txt(real ? (cfg.network === 'devnet' ? 'Solana DEVNET - test network, fake money, no real cost' : 'REAL MONEY - you pay real USDC') : 'TEST MODE - no real money is charged', W / 2, yy + 26, 16, real && cfg.network !== 'devnet' ? '#ffb74d' : '#9dffa0', 'center');
+    if (real) { button(WALLET.pubkey ? 'Wallet: ' + WALLET.pubkey.slice(0, 4) + '...' + WALLET.pubkey.slice(-4) : 'CONNECT WALLET', W / 2 - 130, y + h - 150, 260, 46, 'wallet', !WALLET.pubkey); if (walletMsg) txt(walletMsg, W / 2, y + h - 90, 16, '#ff9a9a', 'center'); if (hit('wallet')) connectWallet(); }
+    const ok = !cfg.paused && (!real || WALLET.pubkey);
+    button(cfg.paused ? 'PAUSED' : 'FIND A PRIZE MATCH', W / 2 - 330, y + h - 66, 280, 46, 'findprize', ok); button('How it works', W / 2 - 30, y + h - 66, 180, 46, 'prizehow'); button('Back', W / 2 + 170, y + h - 66, 160, 46, 'prizeback'); if (hit('prizehow')) window.open('/how', '_blank');
+    if (hit('findprize') && ok) { prizeIntro = false; startOnline(true); } else if (hit('prizeback')) prizeIntro = false;
+  }
+  function drawLobby(gm, t) {
+    const bg = img('assets/bg/forest.png'); ctx.fillStyle = '#10141c'; ctx.fillRect(0, 0, W, H); if (bg) { ctx.globalAlpha = .35; ctx.drawImage(bg, 0, 0, 1024, 1024, 0, 0, 2048, 2048); ctx.globalAlpha = 1; } ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, W, H);
+    const L = gm.lobby, p = L.paid, real = p.mode === 'solana', w = 720, h = 520, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'frameB_gold');
+    txt('PRIZE MATCH LOBBY', W / 2, y + 50, 32, '#ffd24a', 'center'); txt('Prize: ' + p.pack.label + ' (' + usd(p.pack.usd) + ')   -   most kills wins', W / 2, y + 80, 16, '#fff', 'center');
+    L.players.forEach((q, i) => { const yy = y + 108 + i * 50, me = q.id === L.you; ctx.fillStyle = me ? 'rgba(255,210,74,.14)' : 'rgba(255,255,255,.06)'; ctx.fillRect(x + 40, yy, w - 80, 44); const pi = img(portraitOf(q.ch)); if (pi) spr(pi, x + 70, yy + 22, portraitScale(q.ch) * 0.5); txt(q.nick, x + 110, yy + 28, 16, me ? '#ffd24a' : '#fff', 'left'); if (q.paid) txt('PAID', x + w - 56, yy + 28, 16, '#7dff9a', 'right'); });
+    for (let i = L.players.length; i < p.max; i++) { const yy = y + 108 + i * 50; ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.setLineDash([6, 6]); ctx.strokeRect(x + 40, yy, w - 80, 44); ctx.setLineDash([]); txt('waiting for a player...', x + 110, yy + 28, 16, '#6f7f98', 'left', false); }
+    const by = y + 322, left = Math.max(0, Math.ceil(p.stage === 'pay' ? L.left - 0 : L.left));
+    if (p.stage === 'wait') { txt('Waiting for players: ' + p.n + '/' + p.min + ' minimum', W / 2, by, 16, '#fff', 'center'); txt('The match is cancelled in ' + left + 's if nobody else joins', W / 2, by + 24, 16, '#9fb0c8', 'center'); }
+    else if (p.stage === 'lock') { txt(p.n + ' players ready. The lobby locks in ' + left + 's (more players can still join)', W / 2, by, 16, '#fff', 'center'); txt('Estimated price: ' + usd(p.est) + ' each' + (real ? ' (USDC)' : ''), W / 2, by + 28, 32, '#ffd24a', 'center'); }
+    else if (p.youPaid) { txt('Payment received', W / 2, by, 32, '#7dff9a', 'center'); txt(p.paidCount + '/' + p.n + ' paid - waiting for the others (' + left + 's)', W / 2, by + 30, 16, '#fff', 'center'); }
+    else {
+      txt('Lobby locked - ' + p.n + ' players.  Your share' + (p.fee ? ' (includes a ' + p.fee + '% service fee)' : '') + ':', W / 2, by - 6, 16, '#fff', 'center'); txt(usd(p.share) + (real ? ' USDC' : ''), W / 2, by + 30, 32, '#ffd24a', 'center');
+      const need = real && !WALLET.pubkey; button(gm.payBusy ? 'PAYING...' : 'PAY ' + usd(p.share), W / 2 - 110, by + 48, 220, 46, 'paynow', !gm.payBusy);
+      if (need) { button(WALLET.pubkey ? 'Wallet connected' : 'CONNECT WALLET', W / 2 + 130, by + 48, 220, 46, 'wallet2', true); if (hit('wallet2')) connectWallet(); }
+      if (hit('paynow') && !gm.payBusy) { if (need) { gm.payError = 'Connect your wallet first'; } else { gm.payBusy = true; gm.payError = ''; gm.payMsg = 'Preparing the payment...'; if (real) gm.send({ t: 'payreq', wallet: WALLET.pubkey }); else gm.send({ t: 'pay', pay: 'SIM:' + Math.random().toString(36).slice(2, 10) }); } }
+      txt('Time left to pay: ' + left + 's', W / 2, by + 118, 16, '#9fb0c8', 'center');
+      if (gm.payError) txt(gm.payError, W / 2, by + 142, 16, '#ff9a9a', 'center'); else if (gm.payMsg) txt(gm.payMsg, W / 2, by + 142, 16, '#cfd8ff', 'center');
+    }
+    txt(real ? (p.real ? 'REAL MONEY - you are paying real USDC' : 'TEST NETWORK (devnet) - fake money, no real cost') : 'TEST MODE - no real money is charged', W / 2, y + h - 56, 16, real && p.real ? '#ffb74d' : '#9dffa0', 'center');
+    button('Leave', x + w - 150, y + h - 46, 120, 36, 'leavelobby'); if (hit('leavelobby')) leaveOnline();
+    if (gm.toast) { ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(W / 2 - 330, H - 80, 660, 40); txt(gm.toast.text, W / 2, H - 54, 16, '#7dd3ff', 'center'); }
   }
   function leaveOnline() { if (g && g.close) g.close(); state = 'select'; cv.style.filter = BASE_FILTER; }
   let menuMsg = '', menuMsgT = 0;
@@ -168,7 +226,7 @@
   const input = () => ({ x: (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), y: (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) });
   function popupAdvance() { if (!g.popup) return; if (!g.popup.open) g.popup.open = true; else g.popup = null; }
   addEventListener('keydown', e => {
-    if (document.activeElement === nickEl) { if (e.code === 'Enter' && state === 'select') startOnline(); return; }
+    if (document.activeElement === nickEl) { if (e.code === 'Enter' && state === 'select' && !prizeIntro) startOnline(false); return; }
     keys[e.code] = true;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     if (state === 'select') {
@@ -177,9 +235,8 @@
       if (e.code === 'ArrowUp' || e.code === 'KeyW') selIdx = (selIdx + PAL_NAMES.length - 3) % PAL_NAMES.length;
       if (e.code === 'ArrowDown' || e.code === 'KeyS') selIdx = (selIdx + 3) % PAL_NAMES.length;
       const n = +e.key; if (n >= 1 && n <= PAL_NAMES.length) selIdx = n - 1;
-      if (e.code === 'KeyK') cycleSkin();
-      if (e.code === 'KeyO') { startOnline(); return; }
-      if (e.code === 'Enter' || e.code === 'Space') start(); return;
+      if (prizeIntro) { if (e.code === 'Escape') prizeIntro = false; return; }
+      if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyO') startOnline(false); return;
     }
     if (state !== 'play') return;
     if (g.online) {
@@ -216,7 +273,7 @@
       panel(x, y, cell, cell, sel ? 'frameB_gold' : 'frameB');
       const p = img(portraitOf(id)); if (p) spr(p, x + cell / 2, y + cell / 2, portraitScale(id));
       if (sel) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 3; ctx.strokeRect(x - 2, y - 2, cell + 4, cell + 4); }
-      if (hit('sel' + i)) { selIdx = i; }
+      if (!prizeIntro && hit('sel' + i)) { selIdx = i; }
     });
     const c = D.characters[PAL_NAMES[selIdx]][0], dx = gx + 3 * (cell + 10) + 40, dw = Math.min(640, W - dx - 30), dy = 150;
     const ph = 410; panel(dx, dy, dw, ph);
@@ -228,12 +285,14 @@
     txt(wd.name, dx + 112, dy + 210, 16, '#ffd24a'); wrap(wd.description, dx + 112, dy + 232, dw - 140, 16, '#cfe0ff', 20);
     const stats = [['Max Health', c.maxHp], ['Armor', c.armor], ['Move Speed', Math.round(c.moveSpeed * 100) + '%'], ['Might', Math.round(c.power * 100) + '%'], ['Area', Math.round(c.area * 100) + '%'], ['Cooldown', Math.round(c.cooldown * 100) + '%'], ['Luck', Math.round(c.luck * 100) + '%'], ['Growth', Math.round(c.growth * 100) + '%']];
     stats.forEach(([k, v], i) => { const x = dx + 28 + (i % 2) * (dw / 2 - 10), y = dy + 296 + Math.floor(i / 2) * 22; txt(k, x, y, 16, '#9fb0c8', 'left', false); txt(String(v), x + dw / 2 - 50, y, 16, '#fff', 'right', false); });
-    button('PLAY ONLINE', dx + dw - 390, dy + ph + 16, 190, 46, 'online', true); button('SOLO', dx + dw - 190, dy + ph + 16, 170, 46, 'start');
+    button('HOW IT WORKS', dx, dy + ph + 16, 190, 46, 'how'); if (!prizeIntro && hit('how')) window.open('/how', '_blank');
+    button('PLAY', dx + dw - 410, dy + ph + 16, 170, 46, 'online', true); button('PLAY FOR PRIZE', dx + dw - 230, dy + ph + 16, 210, 46, 'prize', true);
     txt('Nickname (shown to other players)', gx, 478, 16, '#9fb0c8', 'left', false);
-    nickEl.style.display = 'block'; nickEl.style.left = Math.round(gx * Z) + 'px'; nickEl.style.top = Math.round(488 * Z) + 'px'; nickEl.style.width = Math.round(296 * Z) + 'px'; nickEl.style.height = Math.round(38 * Z) + 'px'; nickEl.style.fontSize = Math.round(16 * Z) + 'px';
+    nickEl.style.display = prizeIntro ? 'none' : 'block'; nickEl.style.left = Math.round(gx * Z) + 'px'; nickEl.style.top = Math.round(488 * Z) + 'px'; nickEl.style.width = Math.round(296 * Z) + 'px'; nickEl.style.height = Math.round(38 * Z) + 'px'; nickEl.style.fontSize = Math.round(16 * Z) + 'px';
     if (menuMsgT > 0) { menuMsgT -= 1 / 60; txt(menuMsg, W / 2, H - 56, 16, '#ff9a6a', 'center'); }
-    txt('WASD / Arrows: choose character  -  O: play online  -  Enter: solo  -  K: skin ' + skin.toUpperCase() + ' (solo)', W / 2, H - 26, 16, '#7f8fa8', 'center', false);
-    if (hit('start')) start(); if (hit('online')) startOnline();
+    txt('WASD / Arrows: choose character  -  Enter: PLAY  (alone? you just play solo until friends join)', W / 2, H - 26, 16, '#7f8fa8', 'center', false);
+    if (prizeIntro) { drawPrizeIntro(t); return; }
+    if (hit('online')) startOnline(false); if (hit('prize')) prizeIntro = true;
   }
 
   // ================= ESTILO CARTOON: contorno, chão pintado, luz =================
@@ -567,18 +626,18 @@
     const rs = gm.roster || [], rowH = 30, y0 = H - 44 - rs.length * rowH;
     rs.forEach((q, i) => {
       const me = q.id === gm.myId, o = me ? null : (gm.others || []).find(z => z.id === q.id), y = y0 + i * rowH, hp = me ? gm.p.hp : o ? o.hp : 0, mh = me ? gm.S.maxHp : o ? o.mhp : 1, lv = me ? gm.p.level : o ? o.lv : '?', st = me ? (gm.dead ? 1 : gm.waiting ? 2 : 0) : o ? o.st : 1;
-      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(10, y, 250, rowH - 4); ctx.fillStyle = '#5dff9a'; ctx.fillRect(10, y, 4, rowH - 4);
-      txt(q.nick, 22, y + 15, 16, me ? '#ffd24a' : '#fff', 'left', false); txt('LV ' + lv, 256, y + 15, 16, '#9fb0c8', 'right', false);
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(10, y, 300, rowH - 4); ctx.fillStyle = '#5dff9a'; ctx.fillRect(10, y, 4, rowH - 4);
+      txt(q.nick, 22, y + 15, 16, me ? '#ffd24a' : '#fff', 'left', false); txt('LV ' + lv, 306, y + 15, 16, '#9fb0c8', 'right', false); txt('K ' + (me ? gm.p.kills : o ? o.kills : 0), 250, y + 15, 16, '#ffd24a', 'right', false);
       ctx.fillStyle = '#000'; ctx.fillRect(22, y + 19, 150, 4); ctx.fillStyle = st === 0 ? '#4be06a' : '#555'; ctx.fillRect(22, y + 19, 150 * Math.max(0, Math.min(1, hp / Math.max(1, mh))), 4);
       if (st === 1) txt('FALLEN', 135, y + 15, 16, '#ff6a6a', 'left', false); else if (st === 2) txt('WAITING', 135, y + 15, 16, '#ffd24a', 'left', false);
     });
     if (gm.waiting) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, H / 2 - 60, W, 100); txt('A boss fight is on', W / 2, H / 2 - 18, 32, '#ffd24a', 'center'); txt('You join your friends as soon as it ends', W / 2, H / 2 + 16, 16, '#fff', 'center'); }
     else if (gm.dead && !gm.over) { const so = (gm.others || []).find(z => z.id === gm.specId); ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, H - 96, W, 60); txt('YOU FELL', W / 2, H - 66, 32, '#ff6a6a', 'center'); txt(gm.reviving ? 'A friend is reviving you...' : so ? 'A friend can revive you: stay close to your gravestone.  Watching ' + so.nick + ' (Left / Right)' : 'Waiting for a friend to revive you', W / 2, H - 44, 16, gm.reviving ? '#9dffa0' : '#fff', 'center'); }
-    txt('SURVIVE UNTIL 30:00', W / 2, 84, 16, '#ffd24a', 'center');
+    txt(gm.paidInfo ? 'PRIZE MATCH - MOST KILLS WINS  (survive until 30:00)' : 'SURVIVE UNTIL 30:00', W / 2, 84, 16, gm.paidInfo ? '#ffb74d' : '#ffd24a', 'center');
     if (gm.late && gm.t < 40 && !gm.dead) txt('You joined a match in progress - catching up!', W / 2, 190, 16, '#9dffa0', 'center');
     if (gm.popup && gm.popup.line) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 150, 460, 56); txt(gm.popup.title, W / 2, 174, 16, '#ffd24a', 'center'); txt(gm.popup.line, W / 2, 196, 16, '#fff', 'center'); }
     txt('Z X C V B N: quick chat', W - 10, H - 8, 16, '#6f7f98', 'right', false);
-    if (gm.leaveAsk) { ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H); panel(W / 2 - 200, H / 2 - 80, 400, 160, 'frameB_gold'); txt('Leave this match?', W / 2, H / 2 - 20, 32, '#ffd24a', 'center'); txt('Enter: leave     Esc: stay', W / 2, H / 2 + 30, 16, '#fff', 'center'); }
+    if (gm.leaveAsk) { ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, W, H); panel(W / 2 - 200, H / 2 - 80, 400, 160, 'frameB_gold'); txt('Leave this match?', W / 2, H / 2 - 20, 32, '#ffd24a', 'center'); txt('Enter: leave     Esc: stay', W / 2, H / 2 + 30, 16, '#fff', 'center'); if (gm.paidInfo) txt('Leaving a prize match = you forfeit the prize', W / 2, H / 2 + 56, 16, '#ff9a9a', 'center'); }
   }
   // level-up online: cartões num canto, o jogo NÃO pausa; sem escolha em 15 s o jogo escolhe por você
   function drawLevelUpMini(gm) {
@@ -594,12 +653,27 @@
     });
     const k = Math.max(0, Math.min(1, gm.choiceT / 15)), by = y0 + n * (ch + 6); ctx.fillStyle = '#000'; ctx.fillRect(x, by, cw, 8); ctx.fillStyle = k > 0.3 ? '#2f7bff' : '#ff6a3a'; ctx.fillRect(x + 1, by + 1, (cw - 2) * k, 6);
   }
+  function drawPrizeInfo(gm, x, y, w) {   // vencedor + estado do prêmio (comprando -> entregue)
+    const pd = gm.paidEnd, pz = gm.prize, mine = pd.winner && pd.winner.id === gm.myId;
+    if (!pd.winner) { txt('Nobody scored a kill - everyone is refunded', x + w / 2, y + 20, 32, '#ff9a9a', 'center'); return; }
+    txt((mine ? 'YOU WON' : pd.winner.nick + ' WINS') + ' THE ' + pd.pack.label.toUpperCase() + '!', x + w / 2, y + 20, 32, '#ffd24a', 'center');
+    const real = PAYCFG.mode === 'solana'; txt(real ? (PAYCFG.network === 'devnet' ? 'Test network - this is a test card, no real money' : '') : 'Test mode - no real pack was bought', x + w / 2, y + 44, 16, '#9fb0c8', 'center', false);
+    let line = '';
+    if (pz && pz.status === 'buying') line = 'Buying the prize pack...'; else if (pz && pz.status === 'refunded') line = 'The prize pack could not be bought - everyone is being refunded automatically.';
+    else if (pz && pz.status === 'delayed') line = 'The prize is taking longer than usual - it will arrive in the winner\'s wallet shortly.'; else if (pz && pz.status === 'manual') line = 'The host will deliver the prize pack to the winner\'s wallet soon.';
+    else if (pz && pz.status === 'done') line = pz.name + (pz.rarity ? '  -  ' + pz.rarity : '') + (pz.insured ? '  -  insured value $' + pz.insured : '') + (mine ? '  -  sent to YOUR wallet!' : '  -  sent to the winner\'s wallet');
+    if (line) txt(line, x + w / 2, y + 72, 16, pz && pz.status === 'done' ? '#7dff9a' : '#cfd8ff', 'center');
+    if (pz && pz.status === 'done' && pz.image) { const im = img(pz.image); if (im) { const hh = 96, ww = im.naturalWidth * hh / im.naturalHeight; ctx.drawImage(im, x + 36, y - 8, ww, hh); } }
+  }
   function drawOverOnline(gm) {
-    ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, W, H); const rs = gm.results || [], w = 760, h = 190 + rs.length * 40, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'frameB_gold');
+    ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, W, H); const rs = gm.results || [], pd = gm.paidEnd, extra = pd ? 100 : 0, w = 760, h = 250 + extra + rs.length * 40, x = (W - w) / 2, y = Math.max(8, (H - h) / 2); panel(x, y, w, h, 'frameB_gold');
     const won = gm.endReason === 'win'; txt(won ? 'VICTORY!' : 'GAME OVER', W / 2, y + 52, 32, won ? '#7dff9a' : '#ff6a6a', 'center'); txt(won ? 'The team survived the full 30 minutes!' : 'The whole team fell after ' + fmt(gm.endTime), W / 2, y + 80, 16, won ? '#c8ffd8' : '#ff9a9a', 'center');
-    ['PLAYER', 'LV', 'KILLS', 'DAMAGE', 'RESULT'].forEach((k, i) => txt(k, [x + 110, x + 350, x + 430, x + 540, x + 730][i], y + 118, 16, '#9fb0c8', i === 0 ? 'left' : 'right', false));
-    rs.slice().sort((a, b) => b.dmg - a.dmg).forEach((q, i) => { const yy = y + 150 + i * 40, me = q.id === gm.myId; if (me) { ctx.fillStyle = 'rgba(255,210,74,.12)'; ctx.fillRect(x + 20, yy - 24, w - 40, 36); } const pi = img(portraitOf(q.ch)); if (pi) spr(pi, x + 60, yy - 4, portraitScale(q.ch) * 0.42);
-      txt(q.nick, x + 110, yy, 16, me ? '#ffd24a' : '#fff', 'left'); txt(String(q.lv), x + 350, yy, 16, '#fff', 'right'); txt(String(q.kills), x + 430, yy, 16, '#fff', 'right'); txt(String(q.dmg), x + 540, yy, 16, '#fff', 'right'); txt(q.alive ? 'SURVIVED' : 'FALLEN ' + fmt(q.diedAt || 0), x + 730, yy, 16, q.alive ? '#7dff9a' : '#ff8a8a', 'right'); });
+    if (pd) drawPrizeInfo(gm, x, y + 108, w);
+    const oy = y + extra;
+    ['PLAYER', 'KILLS', 'LV', 'DAMAGE', 'RESULT'].forEach((k, i) => txt(k, [x + 110, x + 350, x + 430, x + 540, x + 730][i], oy + 118, 16, '#9fb0c8', i === 0 ? 'left' : 'right', false));
+    rs.forEach((q, i) => { const yy = oy + 150 + i * 40, me = q.id === gm.myId, win = pd && pd.winner && pd.winner.id === q.id; if (me || win) { ctx.fillStyle = win ? 'rgba(255,210,74,.2)' : 'rgba(255,255,255,.08)'; ctx.fillRect(x + 20, yy - 24, w - 40, 36); } const pi = img(portraitOf(q.ch)); if (pi) spr(pi, x + 60, yy - 4, portraitScale(q.ch) * 0.42);
+      txt((i + 1) + '. ' + q.nick + (win ? '  (WINNER)' : '') + (q.left ? '  (left)' : ''), x + 110 - 40, yy, 16, me ? '#ffd24a' : '#fff', 'left'); txt(String(q.kills), x + 350, yy, 16, '#fff', 'right'); txt(String(q.lv), x + 430, yy, 16, '#fff', 'right'); txt(String(q.dmg), x + 540, yy, 16, '#fff', 'right'); txt(q.alive ? 'SURVIVED' : 'FALLEN ' + fmt(q.diedAt || 0), x + 730, yy, 16, q.alive ? '#7dff9a' : '#ff8a8a', 'right'); });
+    if (pd && gm.endAt) txt('Back to the menu in ' + Math.max(0, Math.ceil((gm.endAt - performance.now()) / 1000)) + 's', W / 2, y + h - 78, 16, '#9fb0c8', 'center', false);
     button('Back to menu', W / 2 - 100, y + h - 62, 200, 46, 'done', true); if (hit('done')) leaveOnline();
   }
   function drawLevelUp(gm) {
@@ -670,11 +744,14 @@
     if (state !== 'select') nickEl.style.display = 'none';
     if (state === 'loading') { ctx.fillStyle = '#0b0b10'; ctx.fillRect(0, 0, W, H); txt('Loading…', W / 2, H / 2, 32, '#ffd24a', 'center'); }
     else if (state === 'select') { drawSelect(t); audioFrame(null); drawAudioHint(); }
+    else if (g.online && g.closedByServer) { leaveOnline(); }
     else if (g.online && (!g.gotSnap || g.error) && !g.over) {
-      ctx.fillStyle = '#10141c'; ctx.fillRect(0, 0, W, H); nickEl.style.display = 'none'; g.update(dt, { x: 0, y: 0 });
+      nickEl.style.display = 'none'; g.update(dt, { x: 0, y: 0 });
+      if (g.lobby && !g.error) { drawLobby(g, t); drawAudioHint(); }
+      else { ctx.fillStyle = '#10141c'; ctx.fillRect(0, 0, W, H);
       if (g.error) { txt(g.error, W / 2, H / 2 - 10, 32, '#ff9a6a', 'center'); button('Back to menu', W / 2 - 100, H / 2 + 20, 200, 46, 'done', true); if (hit('done')) leaveOnline(); }
       else txt('Finding a room' + '.'.repeat(1 + Math.floor(t * 2) % 3), W / 2, H / 2, 32, '#ffd24a', 'center');
-      drawAudioHint();
+      drawAudioHint(); }
     }
     else {
       nickEl.style.display = 'none';
@@ -709,7 +786,8 @@
       }, 200);
     }
     const hs = location.hash;
-    if (/online/.test(hs)) { const m0 = hs.match(/play=(\d+)/); if (m0) selIdx = Math.max(0, Math.min(PAL_NAMES.length - 1, +m0[1] - 1)); const nm = hs.match(/name=([A-Za-z0-9_]+)/); if (nm) nickEl.value = nm[1]; startOnline(); }
+    window.__ui = id => { const r = rects.find(q => q.id === id); return r ? { x: (r.x + r.w / 2) * Z, y: (r.y + r.h / 2) * Z } : null; };   // gancho de teste: centro de um botão
+    if (/online|prize/.test(hs)) { const m0 = hs.match(/play=(\d+)/); if (m0) selIdx = Math.max(0, Math.min(PAL_NAMES.length - 1, +m0[1] - 1)); const nm = hs.match(/name=([A-Za-z0-9_]+)/); if (nm) nickEl.value = nm[1]; startOnline(/prize/.test(hs)); }
     else if (/play/.test(hs)) {
       const m = hs.match(/play=(\d+)/); if (m) selIdx = Math.max(0, Math.min(PAL_NAMES.length - 1, +m[1] - 1)); start();
       if (/god/.test(hs)) g.godMode = true;

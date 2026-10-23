@@ -15,14 +15,14 @@
       this.over = false; this.paused = false; this.won = false; this.endReason = null; this.results = null; this.endTime = 0;
       this.enemies = []; this.proj = []; this.zones = []; this.fx = []; this.gems = []; this.chests = []; this.eproj = []; this.tele = []; this.floating = []; this.msgs = []; this.ev = []; this.wantEvents = true;
       this.others = []; this.tombs = []; this.reviving = false; this.roster = []; this.emotes = []; this.myId = 0; this.state = 'connecting'; this.error = null; this.late = false;
-      this.charId = info.ch; this.nick = info.name;
+      this.charId = info.ch; this.nick = info.name; this.isPaid = !!info.paid; this.lobby = null; this.payError = ''; this.payMsg = ''; this.payBusy = false; this.toast = null; this.prize = null; this.paidEnd = null; this.paidInfo = null; this.endAt = 0; this.closedByServer = false;
       this.p = { x: 0, y: 0, fx: 1, fy: 0, hp: 100, level: 1, xp: 0, gold: 0, kills: 0, iframes: 0, face: 1, moving: false, dmg: 0 };
       this.S = { maxHp: 100 }; this.me = { st: 0, spd: 100, need: 5 }; this.weapons = []; this.passives = {}; this.choices = null; this.choiceT = 0; this.popup = null; this.shieldCharges = 0;
       this.dead = false; this.waiting = false; this.specId = 0; this.cam = this.p;
       this.eMap = new Map(); this.zMap = new Map(); this.oMap = new Map(); this.eids = []; this.snapAt = performance.now(); this.snapPrev = 0; this.gotSnap = false;
       this.sendAt = 0; this.heartAt = 0; this.lastSent = null; this.lastTp = 0; this.emoAt = 0; this.visState = new Map(); this.myVis = []; this.pingMs = 0; this.snapN = 0; this.snapGap = 0.066;
       this.ws = new WebSocket(url);
-      this.ws.onopen = () => { this.state = 'joining'; this.send({ t: 'join', name: info.name, ch: info.ch }); };
+      this.ws.onopen = () => { this.state = 'joining'; this.send(info.paid ? { t: 'join', name: info.name, ch: info.ch, paid: true, pack: info.pack } : { t: 'join', name: info.name, ch: info.ch }); };
       this.ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } this.onMsg(m); };
       this.ws.onclose = () => { if (this.state !== 'closed') { this.state = 'closed'; if (!this.over && !this.error) this.error = 'Disconnected from the server'; } };
       this.ws.onerror = () => { if (!this.error) this.error = 'Could not reach the server'; };
@@ -36,10 +36,18 @@
     charOf(id) { const r = this.roster.find(q => q.id === id); return r ? r.ch : this.charId; }
 
     onMsg(m) {
-      if (m.t === 'welcome') { this.myId = m.you; this.eids = m.eids; this.late = !!m.late; this.state = 'playing'; }
+      if (m.t === 'welcome') { this.myId = m.you; this.eids = m.eids; this.late = !!m.late; this.state = 'playing'; this.paidInfo = m.paid || null; this.lobby = null; }
+      else if (m.t === 'lobby') { this.lobby = m; this.state = 'lobby'; if (m.paid && m.paid.youPaid) { this.payBusy = false; this.payError = ''; } }
+      else if (m.t === 'paytx') { this.payMsg = 'Approve the payment in your wallet...'; if (this.hooks.onPayTx) this.hooks.onPayTx(m.tx); }
+      else if (m.t === 'payfail') { this.payError = m.reason || 'Payment failed'; this.payBusy = false; this.payMsg = ''; }
+      else if (m.t === 'refund') { this.toast = { text: 'Refunded $' + (+m.amount).toFixed(2) + (m.sig ? '' : ' (test)') + ' - ' + m.reason, t: 7 }; this.payBusy = false; }
+      else if (m.t === 'prize') { this.prize = m; }
+      else if (m.t === 'kicked' || m.t === 'cancel') { this.error = (m.t === 'kicked' ? 'Removed from the lobby: ' : 'Match cancelled: ') + (m.reason || ''); this.lobby = null; }
+      else if (m.t === 'paidoff') { this.error = 'Prize matches are paused right now. Try again later.'; }
+      else if (m.t === 'closed') { this.closedByServer = true; }
       else if (m.t === 'roster') { this.roster = m.players; }
       else if (m.t === 'snap') this.applySnap(m);
-      else if (m.t === 'end') { this.over = true; this.endReason = m.reason; this.results = m.results; this.endTime = m.time; this.choices = null; this.popup = null; }
+      else if (m.t === 'end') { this.over = true; this.endReason = m.reason; this.results = m.results; this.endTime = m.time; this.choices = null; this.popup = null; this.paidEnd = m.paid || null; this.endAt = performance.now() + ((m.paid && m.paid.left) || 0) * 1000; }
       else if (m.t === 'emo') { this.emotes.push({ id: m.id, k: m.k, t: 3 }); if (this.emotes.length > 12) this.emotes.shift(); }
       else if (m.t === 'full') { this.error = 'All rooms are full. Try again in a minute.'; this.state = 'closed'; }
     }
@@ -169,6 +177,7 @@
       for (const f of this.floating) { f.life -= dt; f.y -= 30 * dt; } this.floating = this.floating.filter(f => f.life > 0);
       for (const m of this.msgs) m.life -= dt; this.msgs = this.msgs.filter(m => m.life > 0);
       for (const e of this.emotes) e.t -= dt; this.emotes = this.emotes.filter(e => e.t > 0);
+      if (this.toast) { this.toast.t -= dt; if (this.toast.t <= 0) this.toast = null; }
       if (this.choices) this.choiceT = Math.max(0, this.choiceT - dt);
       // câmera: quem está fora assiste um amigo vivo
       const so = this.dead || this.waiting ? this.oMap.get(this.specId) : null; this.cam = so ? so : p;

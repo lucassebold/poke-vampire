@@ -2,14 +2,16 @@
   "name": "vampire-like-online",
   "version": "1.0.0",
   "private": true,
-  "description": "Vampire-like online co-op (friends only)",
+  "description": "Vampire-like online co-op (friends only) with prize matches",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=12"
+    "node": ">=18"
   },
   "dependencies": {
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
     "ws": "^8.18.0"
   }
 }

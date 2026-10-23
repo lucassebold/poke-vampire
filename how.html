@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How it works · Vampire-like</title>
+<style>
+:root{--bg:#0e0a1f;--card:#1d1340;--card2:#150e30;--line:#ffffff22;--txt:#f1ecff;--mut:#b9aee0;--y:#ffd24a;--p:#ff4fa3;--c:#4fe3ff;--g:#5dff9a;--o:#ffb74d;--r:#ff5a6a}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--txt);line-height:1.55;
+  background:radial-gradient(1200px 600px at 50% -10%,#5a1d8a55,transparent),linear-gradient(180deg,#25104f,#0e0a1f 420px) fixed var(--bg)}
+a{color:var(--c)}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px 60px}
+header{text-align:center;padding:34px 0 8px}
+h1.logo{margin:0;font-size:clamp(34px,7vw,64px);font-weight:900;letter-spacing:3px;background:linear-gradient(90deg,var(--y),var(--p),var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #1a0d2e) drop-shadow(0 0 18px #ff4fa388)}
+header p{margin:6px 0 0;color:var(--mut);font-size:18px}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:20px 0 6px}
+.btn{display:inline-block;padding:12px 26px;border-radius:14px;font-weight:900;font-size:18px;text-decoration:none;color:#fff}
+.btn.free{background:linear-gradient(180deg,#5dff7a,#1fc24a);box-shadow:0 5px 0 #0f7a2b}
+.btn.paid{background:linear-gradient(180deg,#ffd84f,#ff8a1a);color:#2a1055;box-shadow:0 5px 0 #a64b00}
+nav{position:sticky;top:0;z-index:5;margin:18px -18px 0;padding:10px 18px;background:#0e0a1fcc;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;gap:6px 16px;flex-wrap:wrap;justify-content:center;font-size:14px;font-weight:700}
+nav a{text-decoration:none;color:var(--mut)}nav a:hover{color:#fff}
+section{margin-top:38px}
+h2{font-size:28px;margin:0 0 12px;font-weight:900}
+h2 small{display:block;font-size:14px;color:var(--mut);font-weight:600;margin-top:2px}
+h3{margin:18px 0 6px;font-size:18px;color:var(--y)}
+.card{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:18px;padding:18px 20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border:0}
+.num{flex:none;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--y),var(--p));color:#2a1055;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:18px}
+.step>div>b{display:block;font-size:17px}
+.step span{color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+td.n{font-weight:900;white-space:nowrap}
+kbd{display:inline-block;min-width:26px;padding:1px 8px;border-radius:7px;background:#fff;color:#2a1055;font-weight:800;font-size:13px;text-align:center;box-shadow:0 2px 0 #0006}
+.note{border:2px solid var(--o);background:#ff8a0018;border-radius:14px;padding:12px 16px;margin:14px 0;font-size:15px}
+.ok{border-color:var(--g);background:#1fc24a14}
+.testbanner{display:none;margin:16px 0 0;padding:10px 14px;border-radius:12px;background:#4fe3ff22;border:2px solid var(--c);font-weight:700;text-align:center}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:10px 0 2px}
+.flow div{padding:8px 12px;border-radius:12px;background:#ffffff14;border:1px solid var(--line);font-weight:700;font-size:14px}
+.flow i{color:var(--y);font-style:normal;font-weight:900}
+.ring{display:inline-block;width:46px;height:14px;border-radius:50%;vertical-align:middle;margin-right:8px}
+.ring.red{border:3px solid #ff3355;background:#ff1e3c33}.ring.green{border:3px solid #5dff9a;background:#50ff9633}
+.tag{display:inline-block;padding:1px 9px;border-radius:99px;background:#ffffff1a;font-size:12px;font-weight:800;color:var(--mut)}
+footer{margin-top:50px;text-align:center;color:var(--mut);font-size:13px}
+</style></head><body><div class="wrap">
+
+<header>
+  <h1 class="logo">VAMPIRE-LIKE</h1>
+  <p>How it works</p>
+  <div class="cta"><a class="btn free" href="/">▶ Play</a><a class="btn paid" href="/">🏆 Play for prize</a></div>
+  <div class="testbanner" id="testBanner"></div>
+</header>
+
+<nav><a href="#game">The game</a><a href="#controls">Controls</a><a href="#grow">Level up</a><a href="#enemies">Enemies &amp; bosses</a><a href="#team">Playing together</a><a href="#free">Play</a><a href="#prize">Play for prize</a></nav>
+
+<section id="game">
+  <h2>The game in 30 seconds<small>A chaotic survival game: your hero attacks on its own, you just move.</small></h2>
+  <div class="card">
+    <p style="margin-top:0">You and up to three other players are dropped in the same forest. Waves of enemies keep coming. Your weapons fire <b>by themselves</b> — your job is to <b>move</b>: dodge, collect the glowing gems the enemies drop, level up and build the strongest team you can.</p>
+    <div class="grid g3">
+      <div><h3>🎯 Goal</h3>Survive until <b>30:00</b>. If at least one of you is still alive when the clock hits 30 minutes, the whole team wins.</div>
+      <div><h3>👥 Up to 4 players</h3>Play online with random players or friends. Alone? You simply play solo in your room until someone joins.</div>
+      <div><h3>🏆 Ranking</h3>When the match ends you see everyone's kills, damage and level. In <b>Play for prize</b>, whoever has the <b>most kills</b> wins the prize.</div>
+    </div>
+  </div>
+</section>
+
+<section id="controls">
+  <h2>Controls</h2>
+  <div class="card"><table>
+    <tr><td class="n"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</td><td>Move (the only thing you steer — attacks are automatic)</td></tr>
+    <tr><td class="n"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> / click</td><td>Pick a card when you level up</td></tr>
+    <tr><td class="n"><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd><kbd>B</kbd><kbd>N</kbd></td><td>Quick chat bubbles: Help! · Thanks! · Nice! · Watch out! · Follow me! · GG (there is no free typing chat)</td></tr>
+    <tr><td class="n"><kbd>←</kbd> <kbd>→</kbd></td><td>When you've fallen: switch which friend you are watching</td></tr>
+    <tr><td class="n"><kbd>Esc</kbd></td><td>Leave the match (<kbd>Enter</kbd> confirms)</td></tr>
+    <tr><td class="n"><kbd>M</kbd> · <kbd>-</kbd> <kbd>+</kbd></td><td>Sound on/off · volume</td></tr>
+  </table></div>
+</section>
+
+<section id="grow">
+  <h2>Level up &amp; weapons<small>Everyone grows on their own.</small></h2>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">💎 Gems = experience</h3>Enemies drop gems. Walk over them (a bigger gem is worth more) to fill your blue bar at the top. <b>30%</b> of every gem you pick up is also shared with your teammates, so sticking together helps everybody.</div>
+    <div class="card"><h3 style="margin-top:0">🃏 Level-up cards</h3>When you level up, three cards appear in the corner: new weapons or passive items. <b>The game never pauses</b> for anyone. If you don't pick within 15 seconds, the game picks one for you.</div>
+    <div class="card"><h3 style="margin-top:0">⚔ Weapons</h3>Whip, Magic Wand, Knife, Axe, Cross, King Bible, Fire Wand, Garlic, Lightning Ring, Santa Water, Runetracer, Peachone, Ebony Wings, Song of Mana, Pentagram, Laurel and more. You can hold up to 6 weapons and 6 passive items (Spinach, Hollow Heart, Wings, Crown, Clover…).</div>
+    <div class="card"><h3 style="margin-top:0">✨ Evolutions &amp; chests</h3>Bosses drop treasure chests. A maxed-out weapon plus the right passive item evolves into a much stronger version when you open a chest.</div>
+  </div>
+</section>
+
+<section id="enemies">
+  <h2>Enemies &amp; bosses</h2>
+  <div class="card">
+    <p style="margin-top:0"><span class="ring red"></span><b>Red ring = enemy.</b> &nbsp; <span class="ring green"></span><b>Green ring = a player (you or a friend).</b> You always have a small gold arrow above your head, and your friends have their nickname above theirs.</p>
+    <p style="color:var(--mut)">Enemies come in bigger and bigger waves, with bat swarms and walls of flowers. They chase whoever is closest to them.</p>
+    <table>
+      <tr><td class="n">05:00</td><td>ELON</td></tr><tr><td class="n">10:00</td><td>TRUMP</td></tr><tr><td class="n">15:00</td><td>PEPE</td></tr><tr><td class="n">20:00</td><td>DOGE</td></tr><tr><td class="n">25:00</td><td>BITCOIN BULL</td></tr>
+    </table>
+    <p style="color:var(--mut);margin-bottom:0">Every 5 minutes the screen darkens, a <b>WARNING</b> appears and all normal enemies vanish: a single, tough boss takes over with its own attacks (dashes, projectiles, shockwaves). Kill it to get chests and gems. Its health follows your team's damage, so it is always a real fight. If you join during a boss fight, you wait and enter when it ends.</p>
+    <div class="note ok"><b>Survive 30:00 = victory.</b> At 30:00 Death arrives and the match ends with a victory screen and the ranking. If every player falls before that, it's game over.</div>
+  </div>
+</section>
+
+<section id="team">
+  <h2>Playing together<small>Fallen? Your friends can bring you back.</small></h2>
+  <div class="grid g2">
+    <div class="card"><h3 style="margin-top:0">🪦 Falling &amp; reviving</h3>When you run out of health you leave a <b>gravestone</b> and watch a friend. A living friend who stays close to the gravestone for <b>5 seconds</b> brings you back (a progress bar shows it; it drops if they step away). You return with half health, 10 seconds of protection, and your level, weapons and items. There is no limit on how many times you can be revived.</div>
+    <div class="card"><h3 style="margin-top:0">🚪 Joining a match in progress</h3>You can join a normal match that's already running. To keep it fair, you start with a head start (about 60% of your friends' average level, with weapons and items picked for you), double experience until you catch up, and a few seconds of protection. You appear next to your friends.</div>
+    <div class="card"><h3 style="margin-top:0">⚖ Balance</h3>More players means more enemies and tougher ones (about +60% enemies and +25% health for each extra player) so the match stays a challenge for the whole team.</div>
+    <div class="card"><h3 style="margin-top:0">🔒 Fair play</h3>The server runs the whole match: damage, experience and kills are counted there, never on your computer. Nicknames are filtered, and only the ready-made chat phrases exist.</div>
+  </div>
+</section>
+
+<section id="free">
+  <h2>Play</h2>
+  <div class="card">
+    <div class="flow"><div>Choose your hero &amp; nickname</div><i>→</i><div>PLAY</div><i>→</i><div>Random room (up to 4)</div><i>→</i><div>Survive to 30:00</div><i>→</i><div>Ranking</div></div>
+    <ul style="margin-bottom:0;color:var(--mut)">
+      <li>No account, no wallet, no payment. Just a nickname and a hero (all 9 are free).</li>
+      <li>The match starts right away; friends who arrive later join in with the head start described above.</li>
+      <li>Nothing is saved: no accounts, no leaderboard. Every match is a fresh start.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="prize">
+  <h2>Play for prize<small>Real players only. Whoever kills the most enemies wins a card pack. Everyone shares the cost.</small></h2>
+
+  <div class="card">
+    <h3 style="margin-top:0">In one sentence</h3>
+    <p style="margin:0">You and the other players <b>split the price of one card pack</b>; whoever gets the <b>most kills</b> by the end of the match wins it, and the card is sent <b>straight to their wallet</b>.</p>
+  </div>
+
+  <h3>Step by step</h3>
+  <div class="card">
+    <div class="step"><div class="num">1</div><div><b>Choose “Play for prize” and connect your wallet</b><span>You need a Solana wallet such as <a href="https://phantom.app" target="_blank" rel="noopener">Phantom</a>. Connecting only shares your public address — the game never sees your secret keys.</span></div></div>
+    <div class="step"><div class="num">2</div><div><b>Join a lobby — it's free</b><span>Nothing is charged when you join. The lobby waits for at least <b id="minP">2</b> players (up to <b id="maxP">4</b>). No one can join once the match has started.</span></div></div>
+    <div class="step"><div class="num">3</div><div><b>The lobby locks and the price is split</b><span>When there are enough players, you get <b id="startS">20</b> seconds for more to join (more players = cheaper for everyone). If nobody else shows up in <b id="waitS">90</b> seconds the lobby is cancelled. Then it locks and the pack price is <b>divided between all players</b>.</span></div></div>
+    <div class="step"><div class="num">4</div><div><b>Everyone pays their share in USDC</b><span>You have <b id="payS">60</b> seconds to approve one payment in your wallet. You pay in <b>USDC</b> (a dollar-pegged coin) and you <b>don't need any SOL</b> — the game covers the network fee. If someone doesn't pay in time, they're removed and everybody who already paid is refunded; the price is then recalculated.</span></div></div>
+    <div class="step"><div class="num">5</div><div><b>Play the match</b><span>Same game, same controls, only real players. The match lasts until 30:00 or until everybody has fallen. Fallen players can still be revived by teammates, so teamwork still matters — but the ranking is about <b>kills</b>.</span></div></div>
+    <div class="step"><div class="num">6</div><div><b>The player with the most kills wins</b><span>When the match ends the ranking appears. The player with the <b>most kills</b> wins the pack (tie → most damage). The game buys it and the card is delivered <b>directly to the winner's wallet</b> — usually within seconds.</span></div></div>
+  </div>
+
+  <h3>Good to know</h3>
+  <div class="card">
+    <ul style="margin:0;color:var(--mut)">
+      <li><b>Leaving early = forfeit.</b> If you quit a prize match before it ends, you can't win it and your payment is not returned.</li>
+      <li><b>Nobody got a single kill?</b> Then everybody is refunded.</li>
+      <li><b>If the pack can't be bought</b> for any reason, everyone is refunded automatically.</li>
+      <li>Kills are counted by the server, so they can't be faked from your computer.</li>
+    </ul>
+  </div>
+
+  <h3>What it costs</h3>
+  <div class="card">
+    <p style="margin-top:0">The prize is a <b id="packName">Starter Pack</b> from Collector Crypt (price <b id="packUsd">$25</b>)<span id="feeTxt"></span>. The total is split equally, rounded up to the next cent:</p>
+    <table><thead><tr><th>Players</th><th>You pay</th><th>Total collected</th></tr></thead><tbody id="priceRows"></tbody></table>
+    <p style="margin-bottom:0;color:var(--mut);font-size:14px">The price is fixed at the moment the lobby locks. Joining the lobby is always free.</p>
+  </div>
+
+  <h3>What you can win</h3>
+  <div class="card">
+    <p style="margin-top:0">Packs hold <b>one random card</b>, drawn with a provably fair random roll (verifiable on Collector Crypt). Most cards are common; some are rare and worth much more.</p>
+    <div class="note"><b>Important:</b> the card is random, so it can be worth <b>more or less</b> than what the pack costs. Winning is never a guaranteed profit.</div>
+    <ul style="margin-bottom:0;color:var(--mut)">
+      <li>The card is a digital collectible (NFT) backed by a real physical card stored in Collector Crypt's vault.</li>
+      <li>You can keep it, redeem the physical card (shipping) or sell it back to Collector Crypt within 72 hours for part of its insured value — all from <a href="https://collectorcrypt.com" target="_blank" rel="noopener">collectorcrypt.com</a> with your wallet.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Vampire-like · <a href="/">Back to the game</a><br><span style="opacity:.8">Independent fan project — not affiliated with or endorsed by Poncle, Nintendo, Game Freak, Creatures Inc. or The Pokémon Company.</span></footer>
+</div>
+<script>
+fetch('/paid/config').then(r => r.json()).then(c => {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const pack = (c.packs && c.packs[0]) || { label: 'Starter Pack', usd: 25 }, fee = +c.fee || 0, usd = v => '$' + v.toFixed(2);
+  set('minP', c.min || 2); set('maxP', c.max || 4); set('startS', c.start || 20); set('waitS', c.wait || 90); set('payS', c.payWindow || 60);
+  set('packName', pack.label); set('packUsd', usd(+pack.usd));
+  if (fee) set('feeTxt', ` plus a ${fee}% service fee`);
+  const total = +pack.usd * (1 + fee / 100), rows = document.getElementById('priceRows'); rows.innerHTML = '';
+  for (const n of [2, 3, 4]) { const share = Math.ceil(total * 100 / n) / 100; rows.insertAdjacentHTML('beforeend', `<tr><td class="n">${n} players</td><td><b>${usd(share)}</b> each</td><td>${usd(share * n)}</td></tr>`); }
+  const tb = document.getElementById('testBanner');
+  if (c.mode === 'sim') { tb.style.display = 'block'; tb.innerHTML = '⚠ Prize matches on this server run in <b>simulation mode</b> (no real payments).'; }
+  else if (c.network === 'devnet') { tb.style.display = 'block'; tb.innerHTML = '⚠ This server is on the <b>Solana test network</b>: prize matches use fake test money and test cards.'; }
+}).catch(() => {
+  const rows = document.getElementById('priceRows');
+  for (const n of [2, 3, 4]) { const share = Math.ceil(2500 / n) / 100; rows.insertAdjacentHTML('beforeend', `<tr><td class="n">${n} players</td><td><b>$${share.toFixed(2)}</b> each</td><td>$${(share * n).toFixed(2)}</td></tr>`); }
+});
+</script>
+</body></html>
