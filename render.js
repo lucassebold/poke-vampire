@@ -655,11 +655,11 @@
   }
   function drawPrizeInfo(gm, x, y, w) {   // vencedor + estado do prêmio (comprando -> entregue)
     const pd = gm.paidEnd, pz = gm.prize, mine = pd.winner && pd.winner.id === gm.myId;
-    if (!pd.winner) { txt('Nobody scored a kill - everyone is refunded', x + w / 2, y + 20, 32, '#ff9a9a', 'center'); return; }
+    if (!pd.winner) { txt('Nobody scored a kill - no winner this time', x + w / 2, y + 20, 32, '#ff9a9a', 'center'); return; }
     txt((mine ? 'YOU WON' : pd.winner.nick + ' WINS') + ' THE ' + pd.pack.label.toUpperCase() + '!', x + w / 2, y + 20, 32, '#ffd24a', 'center');
     const real = PAYCFG.mode === 'solana'; txt(real ? (PAYCFG.network === 'devnet' ? 'Test network - this is a test card, no real money' : '') : 'Test mode - no real pack was bought', x + w / 2, y + 44, 16, '#9fb0c8', 'center', false);
     let line = '';
-    if (pz && pz.status === 'buying') line = 'Buying the prize pack...'; else if (pz && pz.status === 'refunded') line = 'The prize pack could not be bought - everyone is being refunded automatically.';
+    if (pz && pz.status === 'buying') line = 'Buying the prize pack...'; else if (pz && pz.status === 'refunded') line = 'The prize pack could not be delivered this time.';
     else if (pz && pz.status === 'delayed') line = 'The prize is taking longer than usual - it will arrive in the winner\'s wallet shortly.'; else if (pz && pz.status === 'manual') line = 'The host will deliver the prize pack to the winner\'s wallet soon.';
     else if (pz && pz.status === 'done') line = pz.name + (pz.rarity ? '  -  ' + pz.rarity : '') + (pz.insured ? '  -  insured value $' + pz.insured : '') + (mine ? '  -  sent to YOUR wallet!' : '  -  sent to the winner\'s wallet');
     if (line) txt(line, x + w / 2, y + 72, 16, pz && pz.status === 'done' ? '#7dff9a' : '#cfd8ff', 'center');

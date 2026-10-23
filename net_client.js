@@ -40,7 +40,7 @@
       else if (m.t === 'lobby') { this.lobby = m; this.state = 'lobby'; if (m.paid && m.paid.youPaid) { this.payBusy = false; this.payError = ''; } }
       else if (m.t === 'paytx') { this.payMsg = 'Approve the payment in your wallet...'; if (this.hooks.onPayTx) this.hooks.onPayTx(m.tx); }
       else if (m.t === 'payfail') { this.payError = m.reason || 'Payment failed'; this.payBusy = false; this.payMsg = ''; }
-      else if (m.t === 'refund') { this.toast = { text: 'Refunded $' + (+m.amount).toFixed(2) + (m.sig ? '' : ' (test)') + ' - ' + m.reason, t: 7 }; this.payBusy = false; }
+      else if (m.t === 'refund') { this.payBusy = false; }   // o servidor devolve o pagamento; sem mensagem de reembolso na tela
       else if (m.t === 'prize') { this.prize = m; }
       else if (m.t === 'kicked' || m.t === 'cancel') { this.error = (m.t === 'kicked' ? 'Removed from the lobby: ' : 'Match cancelled: ') + (m.reason || ''); this.lobby = null; }
       else if (m.t === 'paidoff') { this.error = 'Prize matches are paused right now. Try again later.'; }
