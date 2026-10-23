@@ -442,4 +442,4 @@ setInterval(() => {
 }, 20000);
 wss.on('connection', ws => { ws.on('pong', () => hb.set(ws, 0)); ws.on('message', () => hb.set(ws, 0)); });
 
-initPay().then(() => server.listen(PORT, () => log('Vampire-like online em http://localhost:' + PORT + '  (salas máx ' + MAX_ROOMS + ', ' + MAXP + ' jogadores por sala; pagamento: ' + PAYMENT_MODE + ')'))).catch(e => { console.error('Falha ao iniciar o pagamento:', e && e.message || e); process.exit(1); });
+initPay().then(() => server.listen(PORT, () => log('Poke Survivors online em http://localhost:' + PORT + '  (salas máx ' + MAX_ROOMS + ', ' + MAXP + ' jogadores por sala; pagamento: ' + PAYMENT_MODE + ')'))).catch(e => { console.error('Falha ao iniciar o pagamento:', e && e.message || e); process.exit(1); });
