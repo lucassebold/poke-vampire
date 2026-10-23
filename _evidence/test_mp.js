@@ -35,7 +35,20 @@ const mk = (...chars) => { const g = new Game(null, { mp: true }); g.W = 1280; g
 
 // 6) Morte aos 30 min => resultados (pulando o tempo)
 { const { g, ps } = mk('PORTA', 'CIRO'); g.godMode = true; g.t = 29 * 60 + 50; step(g, 25);
-  ok(g.reaper && g.over && g.endReason === 'reaper', 'Morte chegou e a partida terminou em resultados'); }
+  ok(g.reaper && g.over && g.endReason === 'win', 'aguentou 30 min: partida termina em VITORIA (resultados)'); }
+
+// 6b) ressurreição: amigo vivo fica 5 s perto da lápide
+{ const { g, ps } = mk('PORTA', 'CIRO'); g.godMode = false; g.enemies.length = 0; g.spawnAcc = -1e9; ps[0].p.level = 4; const wn = ps[0].weapons.length;
+  ps[0].p.hp = 0; ps[0].p.x = 0; ps[0].p.y = 0; ps[1].p.x = 400; ps[1].p.y = 0; step(g, 0.2);
+  ok(!ps[0].alive && ps[0].tomb, 'caiu e deixou lápide'); const tx = ps[0].tomb.x;
+  step(g, 3); ok(!ps[0].alive && ps[0].reviveT === 0, 'amigo longe: não revive e barra em 0');
+  ps[1].p.x = 20; ps[1].p.y = 0; ps[1].p.iframes = 99; step(g, 4.5); ok(!ps[0].alive && ps[0].reviveT > 4, 'perto por 4,5 s: ainda não (barra ' + ps[0].reviveT.toFixed(1) + ')');
+  ps[1].p.x = 400; step(g, 1); ok(ps[0].reviveT < 3, 'se afastou: a barra recua (' + ps[0].reviveT.toFixed(1) + ')');
+  ps[1].p.x = 20; ps[1].p.iframes = 99; step(g, 5.5); ok(ps[0].alive, 'perto por 5 s: revive'); ok(ps[0].p.level === 4 && ps[0].weapons.length === wn, 'manteve nível e armas');
+  ok(ps[0].p.hp > 0 && ps[0].p.hp <= ps[0].S.maxHp * 0.6 && ps[0].p.iframes > 5, 'voltou com ~metade da vida e proteção');
+  ps[0].p.hp = 0; step(g, 0.2); ok(!ps[0].alive, 'pode cair de novo'); ps[1].p.x = ps[0].tomb.x; ps[1].p.y = ps[0].tomb.y; ps[1].p.iframes = 99; step(g, 5.5); ok(ps[0].alive, 'e reviver de novo (sem limite)'); ok(!g.over, 'partida seguiu'); }
+// 6c) todos caem => acabou (ninguém para reviver)
+{ const { g, ps } = mk('PORTA', 'CIRO'); ps[0].p.hp = 0; step(g, 0.2); ps[1].p.hp = 0; step(g, 0.2); ok(g.over && g.endReason === 'dead' && !ps[0].alive, 'todos caídos: fim de jogo mesmo com lápides'); }
 
 // 7) chefe com 2 jogadores aparece e quem entra durante o chefe espera
 { const { g, ps } = mk('PORTA', 'CIRO'); g.godMode = true; g.t = 4 * 60 + 58; step(g, 6);

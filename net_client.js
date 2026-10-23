@@ -14,7 +14,7 @@
       this.W = 1280; this.H = 720; this.t = 0; this.phase = 'normal'; this.phaseT = 0; this.tension = 0; this.tnT = 0; this.boss = null; this.bossKey = null; this.reaper = false;
       this.over = false; this.paused = false; this.won = false; this.endReason = null; this.results = null; this.endTime = 0;
       this.enemies = []; this.proj = []; this.zones = []; this.fx = []; this.gems = []; this.chests = []; this.eproj = []; this.tele = []; this.floating = []; this.msgs = []; this.ev = []; this.wantEvents = true;
-      this.others = []; this.roster = []; this.emotes = []; this.myId = 0; this.state = 'connecting'; this.error = null; this.late = false;
+      this.others = []; this.tombs = []; this.reviving = false; this.roster = []; this.emotes = []; this.myId = 0; this.state = 'connecting'; this.error = null; this.late = false;
       this.charId = info.ch; this.nick = info.name;
       this.p = { x: 0, y: 0, fx: 1, fy: 0, hp: 100, level: 1, xp: 0, gold: 0, kills: 0, iframes: 0, face: 1, moving: false, dmg: 0 };
       this.S = { maxHp: 100 }; this.me = { st: 0, spd: 100, need: 5 }; this.weapons = []; this.passives = {}; this.choices = null; this.choiceT = 0; this.popup = null; this.shieldCharges = 0;
@@ -69,6 +69,8 @@
       this.others = [...this.oMap.values()];
       for (const o of this.others) { const r = this.roster.find(q => q.id === o.id); o.nick = r ? r.nick : '?'; o.ch = r ? r.ch : 'PORTA'; this.trackVis(o.id, o.visItems, o.tx, o.ty, o); }
       if (!this.oMap.has(this.specId) || (this.oMap.get(this.specId) || {}).st !== 0) { const live = this.others.find(o => o.st === 0); this.specId = live ? live.id : 0; }
+      this.tombs = (m.tb || []).map(a => ({ id: a[0], x: a[1], y: a[2], pr: a[3] }));
+      this.reviving = this.tombs.some(q => q.id === this.myId && q.pr > 0);
       // inimigos
       const es = new Set();
       for (const a of m.en) {

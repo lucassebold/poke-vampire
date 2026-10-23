@@ -142,6 +142,7 @@
       else if (e.k === 'shake') shake(e.a);
       else if (e.k === 'flash') flashA = Math.max(flashA, e.a);
       else if (e.k === 'evolve') { ps('evolve', { prio: true, jitter: 0 }); flashA = Math.max(flashA, 0.6); shake(8); for (let i = 0; i < 70; i++) { const a = Math.random() * 6.283, s = rand(120, 460); sp(gm.p.x, gm.p.y, Math.cos(a) * s, Math.sin(a) * s, rand(0.5, 1.1), rand(3, 7), `hsl(${Math.random() * 360 | 0},100%,70%)`, true, 0, 2.2); } }
+      else if (e.k === 'revive') { ps('levelup', { prio: true, jitter: 0 }); ringP(e.x, e.y, 90, 20, '#9dffa0', 0.7); burst(e.x, e.y, 24, '#c8ffd8', 240, 0.6, 4); flashA = Math.max(flashA, 0.15); }
       else if (e.k === 'shield') { ps('w_shieldhit', { prio: true }); burst(e.x, e.y, 22, '#9dffa0', 260, 0.5, 4); shake(3); }
       else if (e.k === 'shieldup') { ps('w_shieldup', { prio: true }); ringP(e.x, e.y, 70, 18, '#9dffa0', 0.6); }
       else if (e.k === 'hurt') { ps('hurt', { prio: true, jitter: 0.06 }); burst(e.x, e.y, 10, '#ff4040', 170, 0.4, 4); shake(4); flashA = Math.max(flashA, 0.05); }
@@ -290,6 +291,7 @@
     const sh = img(ART.fx.shadow);
     drawTele(gm, cx, cy, t);
     drawZones(gm, cx, cy, t, live);
+    if (gm.tombs) for (const q of gm.tombs) drawTomb(gm, q, cx, cy, t);
     for (const gm2 of gm.gems) { if (!vis(cx, cy, gm2.x, gm2.y, 30)) continue; const im = gm2.t === 'COIN' ? img(ART.fx.coin) : img(gm2.v >= 25 ? ART.fx.gemr : gm2.v >= 5 ? ART.fx.gemg : ART.fx.gemb); spr(sh, gm2.x - cx, gm2.y - cy + 8, SPR * .8, false, 0, .5); ctx.globalCompositeOperation = 'lighter'; glow(gm2.x - cx, gm2.y - cy, 15, gm2.t === 'COIN' ? '#ffd24a' : gm2.v >= 25 ? '#ff5a6a' : gm2.v >= 5 ? '#5aff8a' : '#4ab8ff', 0.55); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; spr(im, gm2.x - cx, gm2.y - cy + Math.sin(t * 4 + gm2.x) * 1.5, SPR); }
     for (const c of gm.chests) { spr(sh, c.x - cx, c.y - cy + 14, SPR * 2, false, 0, .5); ctx.globalCompositeOperation = 'lighter'; glow(c.x - cx, c.y - cy, 46 + Math.sin(t * 5) * 6, '#ffd24a', .55); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; spr(img(ART.fx.chest1), c.x - cx, c.y - cy + Math.sin(t * 3) * 2, SPR * 1.2); }
     const ents = [];
@@ -311,6 +313,7 @@
     drawWeapons(gm, cx, cy, t, live);
     if (gm.others) for (const o of gm.others) if (o.st === 0) drawOther(gm, o, cx, cy, t, false, true);
     drawPlayer(gm, cx, cy, t, null);
+    if (gm.tombs) for (const q of gm.tombs) drawTomb(gm, q, cx, cy, t, true);
     if (live) updP(dt);
     drawP(cx, cy);
     for (const f of gm.floating) { const big = f.c === '#ffe45a'; ctx.globalAlpha = Math.min(1, f.life * 3); txt(f.t, f.x - cx, f.y - cy, big ? 24 : 16, f.c, 'center'); ctx.globalAlpha = 1; }
@@ -331,6 +334,19 @@
   function drawBubbles(gm, id, x, y) {
     const em = (gm.emotes || []).filter(q => q.id === id); if (!em.length) return; const q = em[em.length - 1], a = Math.min(1, q.t * 2.5); ctx.save(); ctx.globalAlpha = a; ctx.font = `16px ${FONT}`; const w = ctx.measureText(EMOTES[q.k]).width + 20;
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#222'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 6, y + 10); ctx.lineTo(x + 6, y + 10); ctx.lineTo(x, y + 20); ctx.closePath(); ctx.fill(); ctx.fillRect(x - w / 2, y - 14, w, 26); ctx.strokeRect(x - w / 2, y - 14, w, 26); ctx.fillRect(x - 5, y + 9, 10, 3); ctx.restore(); ctx.globalAlpha = a; txt(EMOTES[q.k], x, y + 6, 16, '#111', 'center', false); ctx.globalAlpha = 1;
+  }
+  function drawTomb(gm, q, cx, cy, t, top) {
+    const x = q.x - cx, y = q.y - cy; if (!vis(0, 0, x, y, 80)) return; const me = q.id === gm.myId, nick = me ? 'You' : gm.nameOf(q.id), pulse = 0.5 + 0.5 * Math.sin(t * 3);
+    if (top) { drawTombLabel(gm, q, x, y, me, nick); return; }
+    ctx.save(); ctx.strokeStyle = '#7dff9a'; ctx.globalAlpha = 0.25 + 0.2 * pulse; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(x, y, 55, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.restore();   // área de ressurreição
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + 18, 22, 7, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#8c93a6'; ctx.strokeStyle = '#1a1d2a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 17, y + 18); ctx.lineTo(x - 17, y - 12); ctx.arc(x, y - 12, 17, Math.PI, 0); ctx.lineTo(x + 17, y + 18); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#4a5066'; ctx.fillRect(x - 3, y - 14, 6, 22); ctx.fillRect(x - 9, y - 8, 18, 5);
+    ctx.globalCompositeOperation = 'lighter'; glow(x, y - 6, 46, '#9dffa0', 0.18 + 0.12 * pulse); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  function drawTombLabel(gm, q, x, y, me, nick) {
+    txt(nick, x, y - 40, 16, me ? '#ffd24a' : '#c8ffd8', 'center');
+    if (q.pr > 0) { const bw = 56; ctx.fillStyle = '#000'; ctx.fillRect(x - bw / 2 - 2, y + 26, bw + 4, 10); ctx.fillStyle = '#4be06a'; ctx.fillRect(x - bw / 2, y + 28, bw * q.pr, 6); txt('REVIVING', x, y + 52, 16, '#9dffa0', 'center'); ctx.strokeStyle = '#9dffa0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y - 4, 62, -Math.PI / 2, -Math.PI / 2 + 6.283 * q.pr); ctx.stroke(); }
   }
   function drawOther(gm, o, cx, cy, t, ring, top) {
     const fr = charFrames(o.ch), im = img(fr[o.moving ? Math.floor(t * 9) % fr.length : 0]), sc = charScale(o.ch), ol = Math.max(1, Math.round(2 / sc)), x = o.x - cx, y = o.y - cy;
@@ -543,7 +559,7 @@
     spr(img(ART.fx.coin), W - 120, 46, 2.5); txt(String(Math.floor(gm.p.gold)), W - 20, 52, 16, '#ffd24a', 'right');
     txt('KILLS ' + gm.p.kills, W - 20, 76, 16, '#fff', 'right');
     gm.msgs.forEach((m, i) => txt(m.t, W / 2, 140 + i * 22, 16, '#ffe9a0', 'center'));
-    if (gm.reaper) txt('— DEATH IS HERE —', W / 2, H - 24, 16, '#ff5a5a', 'center');
+    if (gm.reaper) txt(gm.online ? '— YOU SURVIVED! —' : '— DEATH IS HERE —', W / 2, H - 24, 16, gm.online ? '#7dff9a' : '#ff5a5a', 'center');
     drawBossUI(gm, t);
     if (gm.online) drawOnlineHUD(gm, t);
   }
@@ -557,7 +573,8 @@
       if (st === 1) txt('FALLEN', 135, y + 15, 16, '#ff6a6a', 'left', false); else if (st === 2) txt('WAITING', 135, y + 15, 16, '#ffd24a', 'left', false);
     });
     if (gm.waiting) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, H / 2 - 60, W, 100); txt('A boss fight is on', W / 2, H / 2 - 18, 32, '#ffd24a', 'center'); txt('You join your friends as soon as it ends', W / 2, H / 2 + 16, 16, '#fff', 'center'); }
-    else if (gm.dead && !gm.over) { const so = (gm.others || []).find(z => z.id === gm.specId); ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, H - 96, W, 60); txt('YOU FELL', W / 2, H - 66, 32, '#ff6a6a', 'center'); txt(so ? 'Watching ' + so.nick + '   (Left / Right: switch)' : 'Waiting for the match to end', W / 2, H - 44, 16, '#fff', 'center'); }
+    else if (gm.dead && !gm.over) { const so = (gm.others || []).find(z => z.id === gm.specId); ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, H - 96, W, 60); txt('YOU FELL', W / 2, H - 66, 32, '#ff6a6a', 'center'); txt(gm.reviving ? 'A friend is reviving you...' : so ? 'A friend can revive you: stay close to your gravestone.  Watching ' + so.nick + ' (Left / Right)' : 'Waiting for a friend to revive you', W / 2, H - 44, 16, gm.reviving ? '#9dffa0' : '#fff', 'center'); }
+    txt('SURVIVE UNTIL 30:00', W / 2, 84, 16, '#ffd24a', 'center');
     if (gm.late && gm.t < 40 && !gm.dead) txt('You joined a match in progress - catching up!', W / 2, 190, 16, '#9dffa0', 'center');
     if (gm.popup && gm.popup.line) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(W / 2 - 230, 150, 460, 56); txt(gm.popup.title, W / 2, 174, 16, '#ffd24a', 'center'); txt(gm.popup.line, W / 2, 196, 16, '#fff', 'center'); }
     txt('Z X C V B N: quick chat', W - 10, H - 8, 16, '#6f7f98', 'right', false);
@@ -579,10 +596,10 @@
   }
   function drawOverOnline(gm) {
     ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, W, H); const rs = gm.results || [], w = 760, h = 190 + rs.length * 40, x = (W - w) / 2, y = (H - h) / 2; panel(x, y, w, h, 'frameB_gold');
-    txt(T.postGame_header, W / 2, y + 52, 32, '#ffd24a', 'center'); txt(gm.endReason === 'reaper' ? 'Death came for the whole team at ' + fmt(gm.endTime) : 'The whole team fell after ' + fmt(gm.endTime), W / 2, y + 80, 16, '#ff9a9a', 'center');
-    ['PLAYER', 'LV', 'KILLS', 'DAMAGE', 'RESULT'].forEach((k, i) => txt(k, [x + 110, x + 380, x + 460, x + 570, x + 700][i], y + 118, 16, '#9fb0c8', i === 0 ? 'left' : 'right', false));
+    const won = gm.endReason === 'win'; txt(won ? 'VICTORY!' : 'GAME OVER', W / 2, y + 52, 32, won ? '#7dff9a' : '#ff6a6a', 'center'); txt(won ? 'The team survived the full 30 minutes!' : 'The whole team fell after ' + fmt(gm.endTime), W / 2, y + 80, 16, won ? '#c8ffd8' : '#ff9a9a', 'center');
+    ['PLAYER', 'LV', 'KILLS', 'DAMAGE', 'RESULT'].forEach((k, i) => txt(k, [x + 110, x + 350, x + 430, x + 540, x + 730][i], y + 118, 16, '#9fb0c8', i === 0 ? 'left' : 'right', false));
     rs.slice().sort((a, b) => b.dmg - a.dmg).forEach((q, i) => { const yy = y + 150 + i * 40, me = q.id === gm.myId; if (me) { ctx.fillStyle = 'rgba(255,210,74,.12)'; ctx.fillRect(x + 20, yy - 24, w - 40, 36); } const pi = img(portraitOf(q.ch)); if (pi) spr(pi, x + 60, yy - 4, portraitScale(q.ch) * 0.42);
-      txt(q.nick, x + 110, yy, 16, me ? '#ffd24a' : '#fff', 'left'); txt(String(q.lv), x + 380, yy, 16, '#fff', 'right'); txt(String(q.kills), x + 460, yy, 16, '#fff', 'right'); txt(String(q.dmg), x + 570, yy, 16, '#fff', 'right'); txt(q.alive ? 'SURVIVED' : fmt(q.diedAt || 0), x + 700, yy, 16, q.alive ? '#7dff9a' : '#ff8a8a', 'right'); });
+      txt(q.nick, x + 110, yy, 16, me ? '#ffd24a' : '#fff', 'left'); txt(String(q.lv), x + 350, yy, 16, '#fff', 'right'); txt(String(q.kills), x + 430, yy, 16, '#fff', 'right'); txt(String(q.dmg), x + 540, yy, 16, '#fff', 'right'); txt(q.alive ? 'SURVIVED' : 'FALLEN ' + fmt(q.diedAt || 0), x + 730, yy, 16, q.alive ? '#7dff9a' : '#ff8a8a', 'right'); });
     button('Back to menu', W / 2 - 100, y + h - 62, 200, 46, 'done', true); if (hit('done')) leaveOnline();
   }
   function drawLevelUp(gm) {

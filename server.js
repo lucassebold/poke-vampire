@@ -160,6 +160,7 @@ function encode(room, c) {
     const near = inV(P.p.x, P.p.y);
     others.push([P.id, r0(P.p.x), r0(P.p.y), P.p.face, P.p.moving ? 1 : 0, r0(P.p.hp), r0(P.S.maxHp), P.p.level, P.alive ? 0 : P.waiting ? 2 : 1, P.p.iframes > 0 ? 1 : 0, P.shieldCharges, near ? visualWeapons(P) : 0, P.p.kills]);
   }
+  const tombs = g.players.filter(Q => !Q.left && !Q.alive && Q.tomb).map(Q => [Q.id, r0(Q.tomb.x), r0(Q.tomb.y), Math.round(Math.min(1, Q.reviveT / 5) * 100) / 100]);
   const pp = me.p;
   if (process.env.SIZE_DEBUG && room.tick % 60 === 0) { const L = x => JSON.stringify(x).length; log('tam', 'en', L(en), 'bo', L(bo), 'pl', L(others), 'gm', L(gems), 'pj', L(proj), proj.length, 'zn', L(zones), zones.length, 'fx', L(fx), 'ep', L(eproj), 'ev', L(ev), ev.length, 'vw', L(visualWeapons(me))); }
   return {
@@ -167,7 +168,7 @@ function encode(room, c) {
     me: { id: me.id, x: r0(pp.x), y: r0(pp.y), hp: Math.round(pp.hp), mhp: Math.round(me.S.maxHp), lv: pp.level, xp: Math.round(pp.xp * 10) / 10, need: xpNeeded(pp.level), gold: r0(pp.gold), kills: pp.kills, dmg: r0(pp.dmg), st: me.alive ? 0 : me.waiting ? 2 : 1, ifr: pp.iframes > 0 ? 1 : 0, sc: me.shieldCharges,
       ch: me.choices ? me.choices.map(o => [o.kind, o.id, o.lvl]) : null, ct: Math.round(me.choiceT * 10) / 10, pop: me.popup ? { title: me.popup.title, line: me.popup.line, icon: me.popup.icon || null } : null,
       w: me.weapons.map(w => [w.id, w.lvl]), ps: me.passives, vw: visualWeapons(me), spd: g.speedOf(me), tp: me.tpAt || 0 },
-    pl: others, en, bo, gm: gems, cs: chests, pj: proj, zn: zones, fx, ep: eproj, tl: tele, ev,
+    pl: others, tb: tombs, en, bo, gm: gems, cs: chests, pj: proj, zn: zones, fx, ep: eproj, tl: tele, ev,
   };
 }
 function results(room) {
@@ -250,6 +251,8 @@ wss.on('connection', (ws, req) => {
       P.p.face = m.f < 0 ? -1 : 1; P.p.moving = !!m.m; c.spec = num(m.sp, 0, 1e6) | 0;
     } else if (m.t === 'pick') {
       const i = m.i | 0; if (P.choices && i >= 0 && i < P.choices.length) { g.cur = P; g.choose(i); g.cur = g.players[0]; }
+    } else if (m.t === 'dbg_kill' && process.env.TEST_DEBUG) {   // só para testes automatizados
+      P.p.hp = 0;
     } else if (m.t === 'emo') {
       const k = m.k | 0; if (k >= 0 && k < 6 && now - c.emoAt > 1200) { c.emoAt = now; bcast(room, { t: 'emo', id: P.id, k }); }
     }

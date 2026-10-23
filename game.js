@@ -14,6 +14,7 @@ const ENEMY_PX = 0.5;           // enemy.speed (dado, 80-200) * ENEMY_PX = px/s
 const MAX_ENEMIES = 450;
 const MAX_WEAPONS = 6, MAX_PASSIVES = 6;
 const xpNeeded = lvl => 5 + 10 * (lvl - 1);   // [DESIGN] curva de XP não recuperada
+const REVIVE_SECS = 5, REVIVE_R = 55;   // [DESIGN] ressurreição no multiplayer
 const IFRAMES = 0.6;            // [DESIGN]
 const END_MIN = D.stage.mods.TimeLimit / 60;   // 30 (dado)
 
@@ -91,7 +92,7 @@ class Game {
   }
   removePlayer(P) { P.left = true; P.alive = false; P.waiting = false; this.liveP = this.players.filter(Q => Q.alive && !Q.left); }
   anchor() { const live = this.players.filter(P => P.alive && !P.left); const P = live.length ? live[Math.floor(Math.random() * live.length)] : this.players[0]; return P.p; }
-  nActive() { return Math.max(1, this.players.filter(P => !P.left && (P.alive || P.waiting)).length); }
+  nActive() { return Math.max(1, this.players.filter(P => !P.left).length); }
   curseMul() { let m = 1; for (const P of this.players) if (P.alive && P.S) m = Math.max(m, P.S.curse); return m; }
   applyMove(P, ix, iy, dt) {
     const p = P.p, l = Math.hypot(ix, iy);
@@ -230,7 +231,7 @@ class Game {
     } else if (t === 'CYCLE_COMPLETE') {
       if (this.boss) { this.boss.hp = 0; this.boss.silent = true; }
       this.eproj.length = 0; this.tele.length = 0; this.phase = 'normal'; this.queuedBoss = null;
-      this.reaper = true; this.msg('Death has arrived…'); this.emit({ k: 'reaper' }); if (this.mp) this.endAt = this.t + 4;   // multiplayer: a Morte chega e a partida termina nos resultados
+      this.reaper = true; this.msg(this.mp ? 'You survived 30 minutes!' : 'Death has arrived…'); this.emit({ k: 'reaper' }); if (this.mp) this.endAt = this.t + 4;   // multiplayer: a Morte chega e a partida termina nos resultados
     }
   }
   // ---- dano no jogador (escudo do Laurel absorve) ----
@@ -390,11 +391,20 @@ class Game {
       if (this.godMode && P.p.hp <= 0) P.p.hp = P.S.maxHp;   // godMode: só para testes
       if (P.p.hp > 0) continue; this.cur = P;
       if ((P.revUsed || 0) < P.S.revivals) { P.revUsed = (P.revUsed || 0) + 1; P.p.hp = P.S.maxHp * 0.5; P.p.iframes = 3; this.msg('REVIVED!'); }
-      else { P.alive = false; P.p.diedAt = this.t; P.choices = null; P.levelUps = 0; P.popup = null; this.emit({ k: 'playerdown', x: P.p.x, y: P.p.y }); }
+      else { P.alive = false; P.p.diedAt = this.t; P.tomb = { x: P.p.x, y: P.p.y }; P.reviveT = 0; P.choices = null; P.levelUps = 0; P.popup = null; this.emit({ k: 'playerdown', x: P.p.x, y: P.p.y }); }
     }
     this.liveP = this.players.filter(P => P.alive && !P.left);
+    for (const P of this.players) {   // ressurreição: um amigo vivo fica perto da lápide por REVIVE_SECS (a barra recua se ele se afastar)
+      if (P.alive || P.waiting || P.left || !P.tomb) continue;
+      const near = this.liveP.some(Q => Math.hypot(Q.p.x - P.tomb.x, Q.p.y - P.tomb.y) < REVIVE_R);
+      P.reviveT = near ? P.reviveT + dt : Math.max(0, P.reviveT - dt * 2);
+      if (P.reviveT >= REVIVE_SECS) {
+        P.alive = true; P.p.hp = P.S.maxHp * 0.5; P.p.iframes = 10; P.p.x = P.tomb.x; P.p.y = P.tomb.y; P.p.diedAt = null; P.tpAt = this.t; P.tomb = null; P.reviveT = 0;
+        this.liveP = this.players.filter(Q => Q.alive && !Q.left); this.cur = P; this.emit({ k: 'revive', x: P.p.x, y: P.p.y }); this.msg(P.nick + ' is back!');
+      }
+    }
     if (!this.over && !this.players.some(P => (P.alive || P.waiting) && !P.left)) { this.over = true; this.endReason = 'dead'; this.cur = this.players[0]; this.emit({ k: 'gameover' }); }
-    if (!this.over && this.endAt && this.t >= this.endAt) { this.over = true; this.endReason = 'reaper'; this.emit({ k: 'gameover' }); }
+    if (!this.over && this.endAt && this.t >= this.endAt) { this.over = true; this.endReason = 'win'; this.emit({ k: 'gameover' }); }   // multiplayer: aguentar 30 min = VITÓRIA
     this.cur = this.players[0] || this.cur;
   }
   buildGrid() {
