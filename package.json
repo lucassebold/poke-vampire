@@ -1,0 +1,15 @@
+{
+  "name": "vampire-like-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vampire-like online co-op (friends only)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

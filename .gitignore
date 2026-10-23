@@ -1,0 +1,5 @@
+node_modules/
+*.log
+_evidence/*.png
+_evidence/raw/
+.env
