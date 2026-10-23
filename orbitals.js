@@ -6,13 +6,13 @@
   const ART = (typeof window !== 'undefined' ? window.ART : require('./art.js'));
   const base = (id, name, description, o) => Object.assign({ level: 1, bulletType: id, name, description, isUnlocked: true, poolLimit: 10, interval: 0, repeatInterval: 0, power: 1, area: 1, speed: 1, amount: 1, hitsWalls: false }, o);
   const W = {
-    HALO: [base('HALO', 'Halo Blades', 'Spectral blades orbit close to the character.', { evoSynergy: ['SPEED'], evoInto: 'CROWN', power: 0.35, amount: 3 }),
+    HALO: [base('HALO', 'Halo Blades', 'Spectral blades orbit close to the character.', { evoSynergy: ['SPEED'], evoInto: 'CROWN', power: 0.6, amount: 3 }),
       { power: 0.1 }, { amount: 1 }, { area: 0.15, speed: 0.15 }, { power: 0.3 }, { amount: 1 }, { area: 0.2 }, { power: 0.5, amount: 1, addEvolvedWeapon: 'CROWN' }],
     CROWN: [base('CROWN', 'Crown of Blades', 'Evolved Halo Blades. A second ring spins the other way.', { isEvolution: true, evolvesFrom: ['HALO'], requires: ['SPEED'], power: 1.0, amount: 4, area: 1.25, speed: 1.2 })],
     EMBER: [base('EMBER', 'Ember Orbs', 'Fire orbs circle the character, leaving burning embers.', { evoSynergy: ['POWER'], evoInto: 'SOLAR', power: 0.8, amount: 2, speed: 0.9 }),
       { power: 0.1 }, { amount: 1 }, { area: 0.2 }, { power: 0.3 }, { amount: 1 }, { area: 0.2 }, { power: 0.5, addEvolvedWeapon: 'SOLAR' }],
     SOLAR: [base('SOLAR', 'Solar Corona', 'Evolved Ember Orbs. Huge suns and a blazing trail.', { isEvolution: true, evolvesFrom: ['EMBER'], requires: ['POWER'], power: 2.4, amount: 5, area: 1.6 })],
-    FROST: [base('FROST', 'Frost Shards', 'Ice crystals orbit the character and slow what they hit.', { evoSynergy: ['COOLDOWN'], evoInto: 'GLACIER', power: 0.55, amount: 3, speed: 0.8 }),
+    FROST: [base('FROST', 'Frost Shards', 'Ice crystals orbit the character and slow what they hit.', { evoSynergy: ['COOLDOWN'], evoInto: 'GLACIER', power: 0.8, amount: 3, speed: 0.8 }),
       { amount: 1 }, { amount: 1 }, { power: 0.4, area: 0.2 }, { amount: 1 }, { power: 0.5 }, { amount: 1, area: 0.2 }, { amount: 1, power: 0.8, addEvolvedWeapon: 'GLACIER' }],
     GLACIER: [base('GLACIER', 'Glacier Wheel', 'Evolved Frost Shards. A freezing field slows enemies nearby.', { isEvolution: true, evolvesFrom: ['FROST'], requires: ['COOLDOWN'], power: 3.0, amount: 8, area: 1.5 })],
     STORM: [base('STORM', 'Storm Satellites', 'Spark orbs circle the character and zap nearby enemies.', { evoSynergy: ['AMOUNT'], evoInto: 'THUNDER', power: 0.7, amount: 2, interval: 1500 }),

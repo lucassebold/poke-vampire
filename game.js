@@ -13,8 +13,12 @@ const BASE_MOVE = 100;          // px/s, vezes stage.mods.PlayerPxSpeed (dado) e
 const ENEMY_PX = 0.5;           // enemy.speed (dado, 80-200) * ENEMY_PX = px/s
 const MAX_ENEMIES = 450;
 const MAX_WEAPONS = 6, MAX_PASSIVES = 6;
-const xpNeeded = lvl => 5 + 10 * (lvl - 1);   // [DESIGN] curva de XP não recuperada
+const xpNeeded = lvl => Math.round((5 + 10 * (lvl - 1)) * Math.min(1, EARLY_XP + 0.05 * (lvl - 1)));   // [DESIGN] curva de XP não recuperada
 const REVIVE_SECS = 5, REVIVE_R = 55;   // [DESIGN] ressurreição no multiplayer
+// [DESIGN] começo mais caótico: mais inimigos (e mais fracos) que vão voltando ao normal; níveis iniciais mais rápidos; orbital já no início
+const EARLY_SPAWN = 1.5, EARLY_HP = 0.7, EARLY_SECS = 420, EARLY_XP = 0.5;
+const STARTER_ORBIT = { PORTA: 'STORM', ANTONIO: 'HALO', CIRO: 'EMBER', IMELDA: 'HALO', GENNARO: 'FROST', LAMA: 'EMBER', CAMILLO: 'FROST', DOMMARIO: 'STORM', CROCI: 'HALO' };
+const EARLY_EVENTS = [[18, 'BAT_SWARM'], [50, 'BAT_SWARM'], [95, 'FLOWER_WALL'], [140, 'BAT_SWARM']];
 const IFRAMES = 0.6;            // [DESIGN]
 const END_MIN = D.stage.mods.TimeLimit / 60;   // 30 (dado)
 
@@ -74,7 +78,7 @@ class Game {
     this.reaper = false;
     this.phase = 'normal'; this.phaseT = 0; this.boss = null; this.queuedBoss = null; this.bossesDone = 0; this.tension = 0;
     this.dmgLog = []; this.ev = []; this.wantEvents = false;
-    this.eidN = 0; this.nextPid = 1; this.players = []; this.cur = null; this.liveP = [];
+    this.eidN = 0; this.earlyIdx = 0; this.nextPid = 1; this.players = []; this.cur = null; this.liveP = [];
     if (charId) this.addPlayer(charId, 'Player');
   }
   // ---- jogadores: cada um com vida, nível, XP, armas e passivos próprios ----
@@ -84,7 +88,9 @@ class Game {
       p: { x: 0, y: 0, fx: 1, fy: 0, hp: c.maxHp, level: 1, xp: 0, gold: 0, kills: 0, iframes: 0, face: 1, moving: false, dmg: 0, diedAt: null },
       S: null, weapons: [], passives: {}, choices: null, popup: null, levelUps: 0, shieldCharges: 0, revUsed: 0 };
     this.players.push(P); const prev = this.cur; this.cur = P;
-    this.addWeapon(c.startingWeapon); this.recalc(); P.p.hp = P.S.maxHp;
+    this.addWeapon(c.startingWeapon);
+    const orb = STARTER_ORBIT[charId]; if (orb && !this.has(orb) && D.weapons[orb]) { this.addWeapon(orb); const ow = this.has(orb); if (ow) ow.lvl = 2; }   // poder que orbita desde o começo
+    this.recalc(); P.p.hp = P.S.maxHp;
     this.cur = prev || P;
     if (o.late) this.catchUpJoin(P);
     this.liveP = this.players.filter(Q => Q.alive && !Q.left);
@@ -93,6 +99,8 @@ class Game {
   removePlayer(P) { P.left = true; P.alive = false; P.waiting = false; this.liveP = this.players.filter(Q => Q.alive && !Q.left); }
   anchor() { const live = this.players.filter(P => P.alive && !P.left); const P = live.length ? live[Math.floor(Math.random() * live.length)] : this.players[0]; return P.p; }
   nActive() { return Math.max(1, this.players.filter(P => !P.left).length); }
+  earlyBoost() { const d = Math.max(0, 1 - this.t / EARLY_SECS); return 1 + EARLY_SPAWN * d / Math.sqrt(this.nActive()); }
+  earlyHp() { return EARLY_HP + (1 - EARLY_HP) * Math.min(1, this.t / EARLY_SECS); }
   curseMul() { let m = 1; for (const P of this.players) if (P.alive && P.S) m = Math.max(m, P.S.curse); return m; }
   applyMove(P, ix, iy, dt) {
     const p = P.p, l = Math.hypot(ix, iy);
@@ -208,7 +216,7 @@ class Game {
   spawn(id, x, y, extra) {
     const d = D.enemies[id]; if (!d || this.enemies.length >= MAX_ENEMIES + 100 + (this.mp ? 120 * (this.nActive() - 1) : 0)) return null;
     const boss = id.startsWith('BOSS_') || id === 'BAT4' || id.startsWith('XL') && d.xp >= 3 && d.level >= 10, cu = this.curseMul(), hpm = this.mp ? 1 + 0.25 * (this.nActive() - 1) : 1, eid = ++this.eidN;
-    const e = Object.assign({ id, x, y, eid, hp: d.maxHp * DMG_UNIT * this.mods.EnemyHealthMultiplier * cu * hpm, max: d.maxHp * DMG_UNIT * hpm,
+    const e = Object.assign({ id, x, y, eid, hp: d.maxHp * DMG_UNIT * this.mods.EnemyHealthMultiplier * cu * hpm * this.earlyHp(), max: d.maxHp * DMG_UNIT * hpm * this.earlyHp(),
       spd: d.speed * ENEMY_PX * this.mods.EnemySpeed * cu, pow: d.power, kb: d.knockback, xp: d.xp, r: Game.radiusOf(id), variant: eid % ((ART.enemies[id] && ART.enemies[id].variants.length) || 1), scale: (ART.enemies[id] && ART.enemies[id].scale) || 1, seed: ((eid * 0.6180339) % 1) * 10, vx: 0, vy: 0, kx: 0, ky: 0, hitT: {}, boss, fixed: false, flash: 0, slowT: 0 }, extra || {});
     if (id === 'BOSS_XLDEATH') { e.r = 40; e.hp = 1e9; e.max = 1e9; }
     this.enemies.push(e); return e;
@@ -352,7 +360,7 @@ class Game {
       this.waveIdx = min; const w = this.waveFor(min);
       if (bossMin) this.queuedBoss = min;
       else { for (const b of w.bosses || []) { if (this.phase === 'normal') { const e = this.ring(b); if (e) e.boss = true; } } for (const ev of w.events || []) this.runEvent(ev); }
-      if (min === 0) for (let i = 0; i < D.stage.startingSpawns * (this.mp ? 1 + 0.6 * (this.nActive() - 1) : 1); i++) this.ring(pick(w.enemies));
+      if (min === 0) for (let i = 0; i < D.stage.startingSpawns * 2 * (this.mp ? 1 + 0.6 * (this.nActive() - 1) : 1); i++) this.ring(pick(w.enemies));
     }
     // fases do chefe
     this.phaseT += dt;
@@ -361,14 +369,15 @@ class Game {
     else if (this.phase === 'outro' && this.phaseT >= 1.8) { this.phase = 'normal'; this.phaseT = 0; const w2 = this.waveFor(min); if (w2.enemies.length) for (let i = 0; i < 8; i++) this.ring(pick(w2.enemies)); }
     if (this.phase === 'boss' && this.phaseT > 90 && !this.reinf) { this.reinf = true; this.msg('Reinforcements!'); }
     if (this.phase === 'normal') for (const P of this.players) if (P.waiting && !P.left) this.activate(P);   // quem esperava o chefe entra agora
+    if (this.phase === 'normal') while (this.earlyIdx < EARLY_EVENTS.length && this.t >= EARLY_EVENTS[this.earlyIdx][0]) this.doEvent(EARLY_EVENTS[this.earlyIdx++][1]);   // levas extras no começo
     this.tension += ((this.phase === 'warn' || this.phase === 'boss' ? 1 : 0) - this.tension) * Math.min(1, dt * 1.8);
     const w = this.waveFor(min);
     if (this.phase === 'normal' || this.reinf) {
       const cu = this.curseMul(), nq = this.mp ? 1 + 0.6 * (this.nActive() - 1) : 1, cap = MAX_ENEMIES + (this.mp ? 120 * (this.nActive() - 1) : 0);
-      this.spawnAcc += dt * 1000 * cu * nq;
+      const eb = this.earlyBoost(); this.spawnAcc += dt * 1000 * cu * nq * eb;
       while (w.enemies.length && this.spawnAcc >= w.frequency) {
         this.spawnAcc -= w.frequency;
-        const alive = this.enemies.filter(e => !e.swarm).length, floor = w.minimum * nq;   // [DESIGN] semântica de "minimum": piso de inimigos vivos
+        const alive = this.enemies.filter(e => !e.swarm).length, floor = w.minimum * nq * eb;   // [DESIGN] semântica de "minimum": piso de inimigos vivos
         const n = Math.ceil((alive < floor ? Math.min(12, Math.ceil((floor - alive) / 3)) : 1) * cu);
         for (let i = 0; i < n && this.enemies.length < cap; i++) this.ring(pick(w.enemies));
       }
